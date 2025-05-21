@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// prisma/schema.prisma
+datasource db {
+  provider  = "postgresql"
+  url  	    = env("DATABASE_URL")
+  // uncomment next line if you use Prisma <5.10
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  userName      String         @db.VarChar(100)
+  email         String         @unique @db.VarChar(255)
+  password      String         @db.VarChar(255)
+  role          UserRole?       @default(STUDENT)
+  createdTasks  Task[]         @relation("CreatedTasks")
+  assignedTasks Task[]         @relation("AssignedTasks")
+  completions   CompleteTask[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("users")
+}
+
+enum UserRole {
+  TEACHER
+  STUDENT
+}
+
+model Task {
+  id          Int           @id @default(autoincrement())
+  title       String        @db.VarChar(200)
+  description String?
+  status      TaskStatus    @default(PENDING)
+  creator     User          @relation("CreatedTasks", fields: [creatorId], references: [id])
+  creatorId   Int
+  assignee    User?         @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  assigneeId  Int?
+  completions CompleteTask[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  ARCHIVED
+}
+
+model CompleteTask {
+  id        Int      @id @default(autoincrement())
+  task      Task     @relation(fields: [taskId], references: [id])
+  taskId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, userId]) // Prevent duplicate completions
+  @@map("task_completions")
+}
