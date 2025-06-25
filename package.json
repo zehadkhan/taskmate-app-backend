@@ -1,13 +1,25 @@
 {
   "name": "taskmate-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Task management system API built with Express.js and Prisma ORM",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon index.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "migrate": "prisma migrate dev",
+    "studio": "prisma studio",
+    "format": "prisma format",
+    "lint": "eslint .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "task",
+    "management",
+    "api",
+    "express",
+    "prisma",
+    "postgresql"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
@@ -22,5 +34,8 @@
     "express": "^4.19.2",
     "pg": "^8.16.0",
     "postgres": "^3.4.5"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
