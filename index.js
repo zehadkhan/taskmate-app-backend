@@ -3,6 +3,8 @@ const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcrypt");
 const cors = require("cors");
 require("dotenv").config();
+const http = require("http");
+const { Server } = require("socket.io");
 
 // Import middleware
 const { validateUserInput, validateTaskInput, validateCompletionInput } = require("./middleware/validation");
@@ -11,10 +13,37 @@ const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 const prisma = new PrismaClient();
 const app = express();
 const port = process.env.PORT || 5050;
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Adjust as needed for production
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+  },
+});
 
 // Middleware
 app.use(express.json());
 app.use(cors());
+
+// Store connected users by userId
+const connectedUsers = {};
+
+io.on("connection", (socket) => {
+  // Client should emit 'register' with their userId after connecting
+  socket.on("register", (userId) => {
+    connectedUsers[userId] = socket.id;
+  });
+
+  socket.on("disconnect", () => {
+    // Remove user from connectedUsers
+    for (const [userId, id] of Object.entries(connectedUsers)) {
+      if (id === socket.id) {
+        delete connectedUsers[userId];
+        break;
+      }
+    }
+  });
+});
 
 //! Users API
 // Create a new user
@@ -202,8 +231,9 @@ app.post("/tasks/create", validateTaskInput, async (req, res) => {
     }
 
     // Verify assignee exists if provided
+    let assignee = null;
     if (assigneeId) {
-      const assignee = await prisma.user.findUnique({
+      assignee = await prisma.user.findUnique({
         where: { id: parseInt(assigneeId) },
       });
 
@@ -242,6 +272,12 @@ app.post("/tasks/create", validateTaskInput, async (req, res) => {
         completions: true,
       },
     });
+
+    // Emit real-time event to the assignee if connected
+    if (assigneeId && connectedUsers[assigneeId]) {
+      io.to(connectedUsers[assigneeId]).emit("taskAssigned", newTask);
+    }
+
     res.status(201).json(newTask);
   } catch (error) {
     console.error(error);
@@ -796,6 +832,6 @@ app.use(errorHandler);
 // Apply 404 handler for undefined routes
 app.use(notFoundHandler);
 
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`TaskMate API server running on port ${port}`);
 });
